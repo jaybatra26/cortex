@@ -611,7 +611,7 @@ results_cache:
       # CLI flag: -frontend.memcache.write-back-goroutines
       [writeback_goroutines: <int> | default = 10]
 
-      # How many chunks to buffer for background write back.
+      # How many key batches to buffer for background write-back.
       # CLI flag: -frontend.memcache.write-back-buffer
       [writeback_buffer: <int> | default = 10000]
 
@@ -1460,8 +1460,8 @@ index_queries_cache_config:
     # CLI flag: -store.index-cache-read.memcache.write-back-goroutines
     [writeback_goroutines: <int> | default = 10]
 
-    # Cache config for index entry reading. How many chunks to buffer for
-    # background write back.
+    # Cache config for index entry reading. How many key batches to buffer for
+    # background write-back.
     # CLI flag: -store.index-cache-read.memcache.write-back-buffer
     [writeback_buffer: <int> | default = 10000]
 
@@ -1505,8 +1505,8 @@ chunk_cache_config:
     # CLI flag: -memcache.write-back-goroutines
     [writeback_goroutines: <int> | default = 10]
 
-    # Cache config for chunks. How many chunks to buffer for background write
-    # back.
+    # Cache config for chunks. How many key batches to buffer for background
+    # write-back.
     # CLI flag: -memcache.write-back-buffer
     [writeback_buffer: <int> | default = 10000]
 
@@ -1540,8 +1540,8 @@ write_dedupe_cache_config:
     # CLI flag: -store.index-cache-write.memcache.write-back-goroutines
     [writeback_goroutines: <int> | default = 10]
 
-    # Cache config for index entry writing. How many chunks to buffer for
-    # background write back.
+    # Cache config for index entry writing. How many key batches to buffer for
+    # background write-back.
     # CLI flag: -store.index-cache-write.memcache.write-back-buffer
     [writeback_buffer: <int> | default = 10000]
 
