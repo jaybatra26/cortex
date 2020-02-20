@@ -96,7 +96,7 @@ func (c *backgroundCache) Store(ctx context.Context, keys []string, bufs [][]byt
 		}
 		select {
 		case c.bgWrites <- bgWrite:
-			c.queueLength.Add(float64(len(keys)))
+			c.queueLength.Add(float64(num))
 		default:
 			c.droppedWriteBack.Add(float64(len(keys)))
 			sp := opentracing.SpanFromContext(ctx)
