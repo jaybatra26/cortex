@@ -24,6 +24,7 @@ import (
 	"github.com/cortexproject/cortex/pkg/chunk/cache"
 	"github.com/cortexproject/cortex/pkg/chunk/encoding"
 	"github.com/cortexproject/cortex/pkg/querier/astmapper"
+	"github.com/cortexproject/cortex/pkg/util"
 	"github.com/cortexproject/cortex/pkg/util/flagext"
 	"github.com/cortexproject/cortex/pkg/util/validation"
 )
@@ -33,7 +34,11 @@ type configFactory func() StoreConfig
 var seriesStoreSchemas = []string{"v9", "v10", "v11"}
 
 var schemas = append([]string{"v1", "v2", "v3", "v4", "v5", "v6"}, seriesStoreSchemas...)
-
+var excludeLblCfg = util.ExcludeLabels{
+	"fake": []util.Metric{{LabelName: "go_gc_duration_seconds",
+		MetricName: "job"},
+	},
+}
 var stores = []struct {
 	name     string
 	configFn configFactory
@@ -42,6 +47,7 @@ var stores = []struct {
 		name: "store",
 		configFn: func() StoreConfig {
 			var storeCfg StoreConfig
+			storeCfg.ExcludeLabels = excludeLblCfg
 			flagext.DefaultValues(&storeCfg)
 			return storeCfg
 		},
@@ -51,6 +57,7 @@ var stores = []struct {
 		configFn: func() StoreConfig {
 			var storeCfg StoreConfig
 			flagext.DefaultValues(&storeCfg)
+			storeCfg.ExcludeLabels = excludeLblCfg
 			storeCfg.WriteDedupeCacheConfig.Cache = cache.NewFifoCache("test", cache.FifoCacheConfig{
 				MaxSizeItems: 500,
 			}, prometheus.NewRegistry(), log.NewNopLogger())
@@ -100,7 +107,7 @@ func newTestChunkStoreConfigWithMockStorage(t require.TestingT, schemaCfg Schema
 	writeDedupeCache, err := cache.New(storeCfg.WriteDedupeCacheConfig, reg, logger)
 	require.NoError(t, err)
 
-	store := NewCompositeStore(nil)
+	store := NewCompositeStore(nil, excludeLblCfg)
 	err = store.addSchema(storeCfg, schema, schemaCfg.Configs[0].From.Time, storage, storage, overrides, chunksCache, writeDedupeCache)
 	require.NoError(t, err)
 	return store
