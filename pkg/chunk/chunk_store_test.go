@@ -13,6 +13,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/promql/parser"
@@ -551,6 +552,7 @@ func TestChunkStore_getMetricNameChunks(t *testing.T) {
 					}
 				})
 			}
+
 		}
 	}
 }
@@ -641,7 +643,12 @@ func TestChunkStore_verifyRegexSetOptimizations(t *testing.T) {
 				if !reflect.DeepEqual(tc.expect, qs) {
 					t.Fatalf("%s: wrong queries - %s", tc.query, test.Diff(tc.expect, qs))
 				}
+
 			})
+		}
+
+		if err := testutil.CollectAndCount(indexLookupsPerQuery, "chunk_store_index_lookups_per_query"); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
 		}
 	}
 }
