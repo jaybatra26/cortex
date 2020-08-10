@@ -646,7 +646,7 @@ func TestChunkStore_verifyRegexSetOptimizations(t *testing.T) {
 
 			})
 		}
-		if got, want := testutil.CollectAndCount(indexLookupsPerQuery, "chunk_store_index_lookups_per_query"), 0; got != want {
+		if got, want := testutil.CollectAndCount(indexLookupsPerQuery, "cortex_chunk_store_index_lookups_per_query_bucket"), 0; got != want {
 			t.Errorf("unexpected metric count, got %d, want %d", got, want)
 		}
 	}
@@ -804,7 +804,7 @@ func TestChunkStoreRandom(t *testing.T) {
 			}
 		})
 	}
-	if got, want := testutil.CollectAndCount(indexLookupsPerQuery, "chunk_store_index_lookups_per_query"), 0; got != want {
+	if got, want := testutil.CollectAndCount(indexLookupsPerQuery, "cortex_chunk_store_index_lookups_per_query_bucket"), 0; got != want {
 		t.Errorf("unexpected metric count, got %d, want %d", got, want)
 	}
 }
