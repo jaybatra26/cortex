@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -561,42 +562,176 @@ func TestChunkStore_getMetricNameChunks(t *testing.T) {
 func TestChunkStore_verifyRegexSetOptimizations(t *testing.T) {
 	ctx := context.Background()
 	now := model.Now()
+	const observableMetaata = `
+	# HELP some_total A value that represents a counter.
+	# TYPE some_total counter
+	`
 
 	testCases := []struct {
-		query  string
-		expect []string
+		query         string
+		expect        []string
+		observeExpect string
 	}{
 		{
 			`foo`,
 			[]string{"foo"},
+			`
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.005"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.01"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.025"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.05"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.25"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="2.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="10"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="+Inf"} 0
+			cortex_chunk_store_index_lookups_per_query_sum 0
+			cortex_chunk_store_index_lookups_per_query_count 0"}
+
+			`,
 		},
 		{
 			`foo{bar="baz"}`,
 			[]string{"foo{bar=\"baz\"}"},
+			`
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.005"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.01"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.025"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.05"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.25"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="2.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="10"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="+Inf"} 0
+			cortex_chunk_store_index_lookups_per_query_sum 0
+			cortex_chunk_store_index_lookups_per_query_count 0
+			`,
 		},
 		{
 			`foo{bar!="baz"}`,
 			[]string{"foo"},
+			`
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.005"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.01"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.025"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.05"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.25"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="2.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="10"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="+Inf"} 0
+			cortex_chunk_store_index_lookups_per_query_sum 0
+			cortex_chunk_store_index_lookups_per_query_count 0
+			`,
 		},
 		{
 			`foo{toms="code", bar="beep"}`,
 			[]string{"foo{bar=\"beep\"}", "foo{toms=\"code\"}"},
+			`
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.005"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.01"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.025"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.05"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.25"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="2.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="10"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="+Inf"} 0
+			cortex_chunk_store_index_lookups_per_query_sum 0
+			cortex_chunk_store_index_lookups_per_query_count 0
+			`,
 		},
 		{
 			`foo{bar=~"beep"}`,
 			[]string{"foo{bar=\"beep\"}"},
+			`
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.005"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.01"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.025"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.05"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.25"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="2.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="10"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="+Inf"} 0
+			cortex_chunk_store_index_lookups_per_query_sum 0
+			cortex_chunk_store_index_lookups_per_query_count 0
+			`,
 		},
 		{
 			`foo{bar=~"beep|baz"}`,
 			[]string{"foo{bar=\"baz\"}", "foo{bar=\"beep\"}"},
+			`
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.005"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.01"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.025"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.05"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.25"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="2.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="10"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="+Inf"} 0
+			cortex_chunk_store_index_lookups_per_query_sum 0
+			cortex_chunk_store_index_lookups_per_query_count 0
+			`,
 		},
 		{
 			`foo{toms="code", bar=~"beep|baz"}`,
 			[]string{"foo{bar=\"baz\"}", "foo{bar=\"beep\"}", "foo{toms=\"code\"}"},
+			`
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.005"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.01"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.025"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.05"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.25"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="1"} 6
+			cortex_chunk_store_index_lookups_per_query_bucket{le="2.5"} 8
+			cortex_chunk_store_index_lookups_per_query_bucket{le="5"} 8
+			cortex_chunk_store_index_lookups_per_query_bucket{le="10"} 8
+			cortex_chunk_store_index_lookups_per_query_bucket{le="+Inf"} 8
+			cortex_chunk_store_index_lookups_per_query_sum 10
+			cortex_chunk_store_index_lookups_per_query_count 8
+			`,
 		},
 		{
 			`foo{bar=~".+"}`,
 			[]string{"foo{bar}"},
+			`
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.005"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.01"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.025"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.05"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.1"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.25"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="0.5"} 0
+			cortex_chunk_store_index_lookups_per_query_bucket{le="1"} 12
+			cortex_chunk_store_index_lookups_per_query_bucket{le="2.5"} 16
+			cortex_chunk_store_index_lookups_per_query_bucket{le="5"} 16
+			cortex_chunk_store_index_lookups_per_query_bucket{le="10"} 16
+			cortex_chunk_store_index_lookups_per_query_bucket{le="+Inf"} 16
+			cortex_chunk_store_index_lookups_per_query_sum 20
+			cortex_chunk_store_index_lookups_per_query_count 16
+			`,
 		},
 	}
 
@@ -645,10 +780,9 @@ func TestChunkStore_verifyRegexSetOptimizations(t *testing.T) {
 				}
 
 			})
+			assert.NoError(t, testutil.CollectAndCompare(indexLookupsPerQuery, strings.NewReader(observableMetaata+tc.observeExpect), "cortex_chunk_store_index_lookups_per_query"))
 		}
-		if got, want := testutil.CollectAndCount(indexLookupsPerQuery, "cortex_chunk_store_index_lookups_per_query_bucket"), 0; got != want {
-			t.Errorf("unexpected metric count, got %d, want %d", got, want)
-		}
+
 	}
 }
 
@@ -804,7 +938,7 @@ func TestChunkStoreRandom(t *testing.T) {
 			}
 		})
 	}
-	if got, want := testutil.CollectAndCount(indexLookupsPerQuery, "cortex_chunk_store_index_lookups_per_query_bucket"), 0; got != want {
+	if got, want := testutil.CollectAndCount(indexLookupsPerQuery, "cortex_chunk_store_index_lookups_per_query_count"), 0; got != want {
 		t.Errorf("unexpected metric count, got %d, want %d", got, want)
 	}
 }
