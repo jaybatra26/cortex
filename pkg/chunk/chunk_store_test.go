@@ -37,8 +37,6 @@ var seriesStoreSchemas = []string{"v9", "v10", "v11"}
 
 var schemas = append([]string{"v1", "v2", "v3", "v4", "v5", "v6"}, seriesStoreSchemas...)
 
-// var schemas = append([]string{"v1"}, seriesStoreSchemas...)
-
 //using metric name 'job' as this field has only 1 value i.e 'prometheus'
 var excludeLblCfg = util.ExcludeLabels{
 	"fake": []util.Metric{{LabelName: "go_gc_duration_seconds",
@@ -564,19 +562,18 @@ func TestChunkStore_getMetricNameChunks(t *testing.T) {
 func TestChunkStore_verifyRegexSetOptimizations(t *testing.T) {
 	ctx := context.Background()
 	now := model.Now()
-	// var (
-	// 	testIndexLookupsPerQuery = promauto.NewHistogram(prometheus.HistogramOpts{
-	// 		Namespace: "cortex",
-	// 		Name:      "test_chunk_store_index_lookups_per_query",
-	// 		Help:      "Distribution of #index lookups per query.",
-	// 		Buckets:   prometheus.ExponentialBuckets(1, 2, 5),
-	// 	})
-	// )
-	const observableMetaata = `
-	# HELP some_total A value that represents a counter.
-	# TYPE some_total counter
+	const observableMetadata = `
+	# HELP cortex_chunk_store_index_lookups_per_query Distribution of #index lookups per query.
+	# TYPE cortex_chunk_store_index_lookups_per_query histogram
+	cortex_chunk_store_index_lookups_per_query_bucket{le="1"} 18
+	cortex_chunk_store_index_lookups_per_query_bucket{le="2"} 24
+	cortex_chunk_store_index_lookups_per_query_bucket{le="4"} 24
+	cortex_chunk_store_index_lookups_per_query_bucket{le="8"} 24
+	cortex_chunk_store_index_lookups_per_query_bucket{le="16"} 24
+	cortex_chunk_store_index_lookups_per_query_bucket{le="+Inf"} 24
+	cortex_chunk_store_index_lookups_per_query_sum 30
+	cortex_chunk_store_index_lookups_per_query_count 24
 	`
-
 	testCases := []struct {
 		query  string
 		expect []string
@@ -647,24 +644,6 @@ func TestChunkStore_verifyRegexSetOptimizations(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-
-				// if len(matchers) == 0 {
-				// 	testIndexLookupsPerQuery.Observe(1)
-				// }
-				// counter := 0.0
-				// for _, matcher := range matchers {
-
-				// 	exUser := excludeLblCfg[userID]
-				// 	if len(exUser) != 0 {
-				// 		for _, lb := range exUser {
-				// 			if lb.MetricName == "fake" && lb.LabelName == matcher.Name {
-				// 				continue
-				// 			}
-				// 		}
-				// 	}
-				// 	counter++
-				// }
-				// testIndexLookupsPerQuery.Observe(counter)
 				_, err = store.Get(ctx, userID, from, through, matchers...)
 				require.NoError(t, err)
 
@@ -676,10 +655,9 @@ func TestChunkStore_verifyRegexSetOptimizations(t *testing.T) {
 				}
 
 			})
-			assert.NoError(t, testutil.CollectAndCompare(indexLookupsPerQuery, strings.NewReader(""), "cortex_chunk_store_index_lookups_per_query"))
 		}
-
 	}
+	assert.NoError(t, testutil.CollectAndCompare(indexLookupsPerQuery, strings.NewReader(observableMetadata), "cortex_chunk_store_index_lookups_per_query"))
 }
 
 type mockBaseSchema struct {
