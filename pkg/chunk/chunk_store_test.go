@@ -867,8 +867,8 @@ type mockSeriesStoreSchema struct {
 	schema SeriesStoreSchema
 }
 
-func (m mockSeriesStoreSchema) GetCacheKeysAndLabelWriteEntries(from, through model.Time, userID string, metricName string, labels labels.Labels, chunkID string) ([]string, [][]IndexEntry, error) {
-	return m.schema.GetCacheKeysAndLabelWriteEntries(from, through, userID, metricName, labels, chunkID)
+func (m mockSeriesStoreSchema) GetCacheKeysAndLabelWriteEntries(from, through model.Time, userID string, metricName string, labels labels.Labels, chunkID string, excludeLblCfg util.ExcludeLabels) ([]string, [][]IndexEntry, error) {
+	return m.schema.GetCacheKeysAndLabelWriteEntries(from, through, userID, metricName, labels, chunkID, excludeLblCfg)
 }
 
 func (m mockSeriesStoreSchema) GetChunkWriteEntries(from, through model.Time, userID string, metricName string, labels labels.Labels, chunkID string) ([]IndexEntry, error) {
