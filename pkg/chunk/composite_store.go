@@ -3,6 +3,8 @@ package chunk
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"sort"
 	"time"
 
@@ -111,6 +113,60 @@ func (c compositeStore) PutOne(ctx context.Context, from, through model.Time, ch
 		return store.PutOne(innerCtx, from, through, chunk)
 	})
 }
+func checkError(message string, err error) {
+	if err != nil {
+		log.Fatal(message, err)
+	}
+}
+func Helper2(chunks []Chunk) {
+	// count: every time we see a label name, if we have not seen this label value before, add it to a list
+	type labelMap map[string]string
+
+	//  := make(map[string][]labelMap)
+	//label name: [label value1, label value2.....]
+	countMap := make(map[string] /*query name*/ map[string] /*label name*/ map[string] /*label value*/ bool)
+	for _, ch_ := range chunks {
+		metrics := ch_.Metric
+
+		metricName := ch_.Metric.Get(labels.MetricName)
+		for _, label_ := range metrics {
+			keyData, ok := countMap[metricName]
+			if ok {
+				labelName, name_ok := keyData[label_.Name]
+				if name_ok {
+					_, value_ok := labelName[label_.Value]
+					if !value_ok {
+						labelName[label_.Name] = true
+					}
+				} else {
+					keyData[label_.Name] = make(map[string]bool)
+					keyData[label_.Name][label_.Value] = true
+				}
+			} else {
+				countMap[metricName] = make(map[string]map[string]bool)
+				countMap[metricName][label_.Name] = make(map[string]bool)
+				countMap[metricName][label_.Name][label_.Value] = true
+			}
+		}
+	}
+	type leastlabel struct {
+		metricName string
+		key        string
+		len        int
+	}
+	leastlabels := []leastlabel{}
+	for metricName, element := range countMap {
+		for key, el2 := range element {
+			llabel_ := leastlabel{metricName, key, len(el2)}
+			leastlabels = append(leastlabels, llabel_)
+		}
+	}
+
+	sort.SliceStable(leastlabels, func(i, j int) bool {
+		return leastlabels[i].len < leastlabels[j].len
+	})
+	fmt.Println(leastlabels)
+}
 
 func (c compositeStore) Get(ctx context.Context, userID string, from, through model.Time, matchers ...*labels.Matcher) ([]Chunk, error) {
 	var results []Chunk
@@ -119,6 +175,7 @@ func (c compositeStore) Get(ctx context.Context, userID string, from, through mo
 		if err != nil {
 			return err
 		}
+		Helper2(chunks)
 		results = append(results, chunks...)
 		return nil
 	})
